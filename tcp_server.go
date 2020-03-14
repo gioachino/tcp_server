@@ -1,11 +1,12 @@
 package tcp_server
 
 import (
-	"bufio"
 	"crypto/tls"
 	"log"
 	"net"
 )
+
+const defaultBufSize = 4096
 
 // Client holds info about connection
 type Client struct {
@@ -19,20 +20,23 @@ type server struct {
 	config                   *tls.Config
 	onNewClientCallback      func(c *Client)
 	onClientConnectionClosed func(c *Client, err error)
-	onNewMessage             func(c *Client, message string)
+	onNewMessage             func(c *Client, message []byte)
 }
 
 // Read client data from channel
 func (c *Client) listen() {
 	c.Server.onNewClientCallback(c)
-	reader := bufio.NewReader(c.conn)
+	
+	message := make([]byte, defaultBufSize)
 	for {
-		message, err := reader.ReadString('\n')
+		message = message[:defaultBufSize]		// slice (back) to default len
+		n, err := c.conn.Read(message)
 		if err != nil {
 			c.conn.Close()
 			c.Server.onClientConnectionClosed(c, err)
 			return
 		}
+		message = message[:n]			 		// slice to used len (0..n-1)
 		c.Server.onNewMessage(c, message)
 	}
 }
@@ -68,7 +72,7 @@ func (s *server) OnClientConnectionClosed(callback func(c *Client, err error)) {
 }
 
 // Called when Client receives new message
-func (s *server) OnNewMessage(callback func(c *Client, message string)) {
+func (s *server) OnNewMessage(callback func(c *Client, message []byte)) {
 	s.onNewMessage = callback
 }
 
@@ -105,7 +109,7 @@ func New(address string) *server {
 	}
 
 	server.OnNewClient(func(c *Client) {})
-	server.OnNewMessage(func(c *Client, message string) {})
+	server.OnNewMessage(func(c *Client, message []byte) {})
 	server.OnClientConnectionClosed(func(c *Client, err error) {})
 
 	return server
@@ -123,7 +127,7 @@ func NewWithTLS(address string, certFile string, keyFile string) *server {
 	}
 
 	server.OnNewClient(func(c *Client) {})
-	server.OnNewMessage(func(c *Client, message string) {})
+	server.OnNewMessage(func(c *Client, message []byte) {})
 	server.OnClientConnectionClosed(func(c *Client, err error) {})
 
 	return server

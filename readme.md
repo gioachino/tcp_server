@@ -26,7 +26,7 @@ func main() {
 		// lets send some message
 		c.Send("Hello")
 	})
-	server.OnNewMessage(func(c *tcp_server.Client, message string) {
+	server.OnNewMessage(func(c *tcp_server.Client, message []byte) {
 		// new message received
 	})
 	server.OnClientConnectionClosed(func(c *tcp_server.Client, err error) {
